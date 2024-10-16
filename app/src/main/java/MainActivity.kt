@@ -5,6 +5,7 @@ import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
+import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,26 +27,36 @@ class MainActivity : AppCompatActivity() {
         val imageWidth = (screenWidth * 0.09).toInt() // 9% of screen width
         val imageMargin = (screenWidth * 0.005).toInt() // 0.5% of screen width
 
-        for (i in 1..444) {
-            val imageView = ImageView(this).apply {
-                val resourceId = resources.getIdentifier("grapheme_${String.format("%03d", i)}", "drawable", packageName)
-                setImageResource(resourceId)
-                setOnClickListener { onImageClick(i) }
-            }
+        try {
+            val assetManager = assets
+            val files = assetManager.list("graphems") ?: return
 
-            val params = GridLayout.LayoutParams().apply {
-                width = imageWidth
-                height = imageWidth // Make it square
-                setMargins(imageMargin, imageMargin, imageMargin, imageMargin)
-            }
-            imageView.layoutParams = params
+            for (file in files) {
+                if (file.endsWith(".png") || file.endsWith(".jpg") || file.endsWith(".jpeg")) {
+                    val imageView = ImageView(this).apply {
+                        setImageBitmap(assetManager.open("graphems/$file").use {
+                            android.graphics.BitmapFactory.decodeStream(it)
+                        })
+                        setOnClickListener { onImageClick(file) }
+                    }
 
-            buttonGrid.addView(imageView)
+                    val params = GridLayout.LayoutParams().apply {
+                        width = imageWidth
+                        height = imageWidth // Make it square
+                        setMargins(imageMargin, imageMargin, imageMargin, imageMargin)
+                    }
+                    imageView.layoutParams = params
+
+                    buttonGrid.addView(imageView)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
         }
     }
 
-    private fun onImageClick(number: Int) {
+    private fun onImageClick(fileName: String) {
         val currentText = resultEditText.text.toString()
-        resultEditText.setText(currentText + number.toString())
+        resultEditText.setText(currentText + fileName)
     }
 }
