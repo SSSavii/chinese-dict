@@ -4,28 +4,40 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@drawable/background"
     android:padding="16dp">
 
-    <EditText
-        android:id="@+id/resultEditText"
+    <!-- Область для отображения выбранных графем -->
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:autofillHints=""
-        android:hint="Результат"
-        android:inputType="text"
-        android:minHeight="48dp" />
+        android:background="@drawable/selected_area_background"
+        android:padding="8dp"
+        android:layout_marginBottom="16dp">
 
+        <LinearLayout
+            android:id="@+id/selectedGraphemesContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:minHeight="50dp"
+            android:gravity="center_vertical"/>
+    </HorizontalScrollView>
+
+    <!-- Клавиатура графем -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="16dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         tools:ignore="SpeakableTextPresentCheck">
 
         <GridLayout
             android:id="@+id/buttonGrid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="9" />
+            android:columnCount="9"
+            android:background="#FFFFFF"
+            android:padding="8dp"/>
 
     </ScrollView>
 
