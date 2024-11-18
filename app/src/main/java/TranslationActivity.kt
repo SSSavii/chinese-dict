@@ -47,8 +47,14 @@ class TranslationActivity : AppCompatActivity() {
             try {
                 val request = TranslationRequest(text = character)
                 val response = apiService.getTranslation(request)
-                if (response.tokens.isNotEmpty()) {
+
+                // Проверяем оба возможных формата ответа
+                if (response.tokens != null && response.tokens.isNotEmpty()) {
+                    // Если получен список токенов
                     displayTranslation(response.tokens)
+                } else if (response.token != null) {
+                    // Если получен одиночный токен
+                    displaySingleToken(response)
                 } else {
                     displayError("Перевод не найден")
                 }
@@ -73,6 +79,16 @@ class TranslationActivity : AppCompatActivity() {
                 val token = tokens[0]
                 pinyinTextView.text = token.pinyin
                 meaningsTextView.text = token.meanings.joinToString("\n") { "• $it" }
+            }
+        }
+    }
+    private fun displaySingleToken(response: TranslationResponse) {
+        runOnUiThread {
+            pinyinTextView.text = response.pinyin ?: ""
+            response.meanings?.let { meanings ->
+                meaningsTextView.text = meanings.joinToString("\n") { "• $it" }
+            } ?: run {
+                meaningsTextView.text = ""
             }
         }
     }

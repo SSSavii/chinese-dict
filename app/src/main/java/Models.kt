@@ -17,15 +17,15 @@ data class TranslationRequest(
 )
 
 data class TranslationResponse(
-    val tokens: List<TokenDetail>
+    val tokens: List<TokenDetail>? = null,
+    // Добавляем поля для одиночного токена
+    val token: String? = null,
+    val pinyin: String? = null,
+    val meanings: List<String>? = null
 )
 
 data class TokenDetail(
     val token: String,
     val pinyin: String,
     val meanings: List<String>
-)
-data class ConfirmGraphemesRequest(
-    val hieroglyph: String,
-    val graphemes: List<String>
 )
