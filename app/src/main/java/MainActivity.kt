@@ -45,10 +45,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        confirmGraphemesButton.setOnClickListener {
-            confirmGraphemes()
-        }
-
         translateButton.setOnClickListener {
             val character = characterInput.text.toString()
             if (character.isNotEmpty()) {
@@ -57,7 +53,17 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Введите иероглиф", Toast.LENGTH_SHORT).show()
             }
         }
+
+        // Обработчик для кнопки подтверждения графем
+        confirmGraphemesButton.setOnClickListener {
+            if (selectedGraphemes.isNotEmpty()) {
+                checkHieroglyphExists()
+            } else {
+                Toast.makeText(this, "Выберите графемы", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
+
 
     private fun startTranslationActivity(character: String) {
         val intent = Intent(this, TranslationActivity::class.java)
@@ -116,6 +122,7 @@ class MainActivity : AppCompatActivity() {
             updateSelectedGraphemesView()
         }
 
+        // Вместо прямого поиска иероглифа - получаем доступные графемы
         if (selectedGraphemes.isNotEmpty()) {
             fetchAvailableGraphemes()
         } else {
@@ -172,55 +179,59 @@ class MainActivity : AppCompatActivity() {
             try {
                 val request = GraphemeRequest(selectedGraphemes)
                 val response = apiService.getAvailableGraphemes(request)
+
+                // Обновляем кнопки доступными графемами
                 updateButtonGrid(response.available_graphemes)
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error fetching graphemes", e)
+                Log.e("MainActivity", "Error fetching available graphemes", e)
                 Toast.makeText(
                     this@MainActivity,
-                    "Ошибка при получении графем: ${e.message}",
+                    "Не удалось получить доступные графемы: ${e.message}",
                     Toast.LENGTH_SHORT
+                ).show()
+                createImageButtons() // Возврат к initial state
+            }
+        }
+    }
+
+    private fun checkHieroglyphExists() {
+        lifecycleScope.launch {
+            try {
+                val request = GraphemeRequest(selectedGraphemes)
+
+                // Затем пытаемся получить иероглиф
+                val response = apiService.getHieroglyph(request)
+
+                characterInput.setText(response.hieroglyph)
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "Иероглиф найден: ${response.hieroglyph}",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                selectedGraphemes.clear()
+                updateSelectedGraphemesView()
+                createImageButtons()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error checking hieroglyph", e)
+
+                val errorMessage = when (e) {
+                    is retrofit2.HttpException -> {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        Log.e("MainActivity", "Server error response: $errorBody")
+                        "Иероглиф не найден: ${errorBody ?: e.message()}"
+                    }
+                    else -> "Ошибка: ${e.message}"
+                }
+
+                Toast.makeText(
+                    this@MainActivity,
+                    errorMessage,
+                    Toast.LENGTH_LONG
                 ).show()
             }
         }
-    }
-
-    private fun confirmGraphemes() {
-        lifecycleScope.launch {
-            try {
-                val randomHieroglyph = apiService.getRandomHieroglyph()
-                val request = GraphemeRequest(selectedGraphemes)
-
-                val response = apiService.confirmGraphemes(
-                    hieroglyph = randomHieroglyph,
-                    selected_graphemes = request
-                )
-
-                if (response.confirm) {
-                    characterInput.setText(randomHieroglyph)
-                    selectedGraphemes.clear()
-                    updateSelectedGraphemesView()
-                    createImageButtons()
-                    Toast.makeText(this@MainActivity, "Графемы подтверждены", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Неверная комбинация графем", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                handleError(e)
-            }
-        }
-    }
-
-    private fun handleError(e: Exception) {
-        Log.e("MainActivity", "Error occurred", e)
-        val errorMessage = when (e) {
-            is retrofit2.HttpException -> {
-                val errorBody = e.response()?.errorBody()?.string()
-                Log.e("MainActivity", "Server error response: $errorBody")
-                "Ошибка сервера: ${errorBody ?: e.message()}"
-            }
-            else -> "Ошибка: ${e.message}"
-        }
-        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
     }
 
     private fun updateButtonGrid(availableGraphemes: List<String>) {
@@ -233,15 +244,33 @@ class MainActivity : AppCompatActivity() {
             if (availableGraphemes.isEmpty()) {
                 createImageButtons()
             } else {
-                for (grapheme in availableGraphemes) {
+                // Используем Set для исключения дубликатов
+                val uniqueGraphemes = availableGraphemes.toSet()
+                for (grapheme in uniqueGraphemes) {
                     try {
                         val imageView = createImageView("$grapheme.png", imageWidth, imageMargin)
                         buttonGrid.addView(imageView)
                     } catch (e: IOException) {
-                        Log.e("MainActivity", "Error creating image view for grapheme: $grapheme", e)
+                        Log.e(
+                            "MainActivity",
+                            "Error creating image view for grapheme: $grapheme",
+                            e
+                        )
                     }
                 }
             }
         }
+    }
+    private fun handleError(e: Exception) {
+        Log.e("MainActivity", "Error occurred", e)
+        val errorMessage = when (e) {
+            is retrofit2.HttpException -> {
+                val errorBody = e.response()?.errorBody()?.string()
+                Log.e("MainActivity", "Server error response: $errorBody")
+                "Ошибка сервера: ${errorBody ?: e.message()}"
+            }
+            else -> "Ошибка: ${e.message}"
+        }
+        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
     }
 }

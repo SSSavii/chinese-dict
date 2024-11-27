@@ -8,8 +8,8 @@ data class GraphemeResponse(
     val available_graphemes: List<String>
 )
 
-data class ConfirmResponse(
-    val confirm: Boolean
+data class HieroglyphResponse(
+    val hieroglyph: String
 )
 
 data class TranslationRequest(
