@@ -24,7 +24,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var confirmGraphemesButton: ImageButton
     private lateinit var translateButton: Button
     private val selectedGraphemes = mutableListOf<String>()
+    private var isDeleting = false
+/*Рад, что удалось решить проблему! Давайте я объясню, почему это решение работает:
 
+1. Флаг `isDeleting` помогает различать между добавлением новой графемы и удалением существующей, что предотвращает нежелательные состояния клавиатуры.
+
+2. При удалении графемы происходит полный сброс состояния и последовательное восстановление оставшихся графем, что гарантирует правильный порядок и набор доступных графем.
+
+3. Последовательное добавление графем заново (`currentGraphemes.forEach`) обеспечивает корректное обновление состояния клавиатуры в соответствии с логикой сервера*/
     private val apiService = RetrofitClient.apiService
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createImageButtons() {
+        buttonGrid.removeAllViews()
         val screenWidth = resources.displayMetrics.widthPixels
         val imageWidth = (screenWidth * 0.09).toInt()
         val imageMargin = (screenWidth * 0.005).toInt()
@@ -111,20 +119,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onImageClick(fileName: String) {
+        if (isDeleting) {
+            isDeleting = false
+            createImageButtons()
+            return
+        }
+
         val grapheme = fileName.removeSuffix(".png")
         Log.d("MainActivity", "Clicked grapheme: $grapheme")
 
-        // Добавляем графему в список, даже если она уже там есть
         selectedGraphemes.add(grapheme)
         updateSelectedGraphemesView()
-
-        // Получаем доступные графемы
-        if (selectedGraphemes.isNotEmpty()) {
-            fetchAvailableGraphemes()
-        } else {
-            createImageButtons()
-        }
+        fetchAvailableGraphemes()
     }
+
 
     private fun updateSelectedGraphemesView() {
         selectedGraphemesContainer.removeAllViews()
@@ -133,7 +141,6 @@ class MainActivity : AppCompatActivity() {
         val imageWidth = (screenWidth * 0.09).toInt()
         val margin = (resources.displayMetrics.density * 4).toInt()
 
-        // Создаем список индексов для каждой графемы
         val graphemeIndices = selectedGraphemes.withIndex().toList()
 
         for ((index, grapheme) in graphemeIndices) {
@@ -147,23 +154,26 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 setOnClickListener {
-                    animate()
-                        .alpha(0f)
-                        .setDuration(200)
-                        .withEndAction {
-                            // Удаляем конкретный экземпляр графемы по индексу
-                            selectedGraphemes.removeAt(index)
-                            updateSelectedGraphemesView()
+                    isDeleting = true
+                    selectedGraphemes.removeAt(index)
+                    updateSelectedGraphemesView()
+
+                    // Полностью сбрасываем состояние клавиатуры
+                    if (selectedGraphemes.isEmpty()) {
+                        createImageButtons()
+                    } else {
+                        // Заново запрашиваем доступные графемы с начала
+                        val currentGraphemes = selectedGraphemes.toList()
+                        selectedGraphemes.clear()
+                        createImageButtons()
+
+                        // Последовательно добавляем графемы заново
+                        currentGraphemes.forEach { g ->
+                            selectedGraphemes.add(g)
                             fetchAvailableGraphemes()
                         }
-                        .start()
+                    }
                 }
-
-                alpha = 0f
-                animate()
-                    .alpha(1f)
-                    .setDuration(200)
-                    .start()
             }
             selectedGraphemesContainer.addView(imageView)
         }
@@ -180,16 +190,30 @@ class MainActivity : AppCompatActivity() {
                 val request = GraphemeRequest(selectedGraphemes)
                 val response = apiService.getAvailableGraphemes(request)
 
-                // Обновляем кнопки доступными графемами
-                updateButtonGrid(response.available_graphemes)
+                runOnUiThread {
+                    buttonGrid.removeAllViews()
+                    if (response.available_graphemes.isEmpty()) {
+                        createImageButtons()
+                    } else {
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val imageWidth = (screenWidth * 0.09).toInt()
+                        val imageMargin = (screenWidth * 0.005).toInt()
+
+                        response.available_graphemes.forEach { grapheme ->
+                            try {
+                                val imageView = createImageView("$grapheme.png", imageWidth, imageMargin)
+                                buttonGrid.addView(imageView)
+                            } catch (e: IOException) {
+                                Log.e("MainActivity", "Error creating image view for grapheme: $grapheme", e)
+                            }
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error fetching available graphemes", e)
-                Toast.makeText(
-                    this@MainActivity,
-                    "Не удалось получить доступные графемы: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-                createImageButtons() // Возврат к initial state
+                runOnUiThread {
+                    createImageButtons()
+                }
             }
         }
     }
@@ -233,6 +257,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
 
     private fun updateButtonGrid(availableGraphemes: List<String>) {
         runOnUiThread {
