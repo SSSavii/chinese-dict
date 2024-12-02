@@ -257,45 +257,4 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-
-    private fun updateButtonGrid(availableGraphemes: List<String>) {
-        runOnUiThread {
-            buttonGrid.removeAllViews()
-            val screenWidth = resources.displayMetrics.widthPixels
-            val imageWidth = (screenWidth * 0.09).toInt()
-            val imageMargin = (screenWidth * 0.005).toInt()
-
-            if (availableGraphemes.isEmpty()) {
-                createImageButtons()
-            } else {
-                // Используем Set для исключения дубликатов
-                val uniqueGraphemes = availableGraphemes.toSet()
-                for (grapheme in uniqueGraphemes) {
-                    try {
-                        val imageView = createImageView("$grapheme.png", imageWidth, imageMargin)
-                        buttonGrid.addView(imageView)
-                    } catch (e: IOException) {
-                        Log.e(
-                            "MainActivity",
-                            "Error creating image view for grapheme: $grapheme",
-                            e
-                        )
-                    }
-                }
-            }
-        }
-    }
-    private fun handleError(e: Exception) {
-        Log.e("MainActivity", "Error occurred", e)
-        val errorMessage = when (e) {
-            is retrofit2.HttpException -> {
-                val errorBody = e.response()?.errorBody()?.string()
-                Log.e("MainActivity", "Server error response: $errorBody")
-                "Ошибка сервера: ${errorBody ?: e.message()}"
-            }
-            else -> "Ошибка: ${e.message}"
-        }
-        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
-    }
 }
