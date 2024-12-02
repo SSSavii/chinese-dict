@@ -114,15 +114,11 @@ class MainActivity : AppCompatActivity() {
         val grapheme = fileName.removeSuffix(".png")
         Log.d("MainActivity", "Clicked grapheme: $grapheme")
 
-        if (selectedGraphemes.contains(grapheme)) {
-            selectedGraphemes.remove(grapheme)
-            updateSelectedGraphemesView()
-        } else {
-            selectedGraphemes.add(grapheme)
-            updateSelectedGraphemesView()
-        }
+        // Добавляем графему в список, даже если она уже там есть
+        selectedGraphemes.add(grapheme)
+        updateSelectedGraphemesView()
 
-        // Вместо прямого поиска иероглифа - получаем доступные графемы
+        // Получаем доступные графемы
         if (selectedGraphemes.isNotEmpty()) {
             fetchAvailableGraphemes()
         } else {
@@ -137,7 +133,10 @@ class MainActivity : AppCompatActivity() {
         val imageWidth = (screenWidth * 0.09).toInt()
         val margin = (resources.displayMetrics.density * 4).toInt()
 
-        for (grapheme in selectedGraphemes) {
+        // Создаем список индексов для каждой графемы
+        val graphemeIndices = selectedGraphemes.withIndex().toList()
+
+        for ((index, grapheme) in graphemeIndices) {
             val imageView = ImageView(this).apply {
                 setImageBitmap(assets.open("graphems/$grapheme.png").use {
                     android.graphics.BitmapFactory.decodeStream(it)
@@ -152,7 +151,8 @@ class MainActivity : AppCompatActivity() {
                         .alpha(0f)
                         .setDuration(200)
                         .withEndAction {
-                            selectedGraphemes.remove(grapheme)
+                            // Удаляем конкретный экземпляр графемы по индексу
+                            selectedGraphemes.removeAt(index)
                             updateSelectedGraphemesView()
                             fetchAvailableGraphemes()
                         }
