@@ -23,29 +23,12 @@
         android:layout_marginBottom="16dp"
         android:textColor="#666666"/>
 
-    <ScrollView
+    <TextView
+        android:id="@+id/meaningsTextView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@drawable/translation_background">
-
-        <TextView
-            android:id="@+id/meaningsTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:gravity="start"
-            android:padding="16dp"
-            android:lineSpacingExtra="4dp"/>
-
-    </ScrollView>
-
-    <Button
-        android:id="@+id/backButton"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="16dp"
-        android:text="Назад"/>
+        android:textSize="18sp"
+        android:gravity="start"
+        android:layout_marginBottom="16dp"/>
 
 </LinearLayout>

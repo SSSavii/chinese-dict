@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">SimpleDictionary</string>
+    <string name="enter_hieroglyphs">Введите иероглиф</string>
+    <string name="translate">Перевести</string>
+    <string name="quit">Выход</string>
 </resources>

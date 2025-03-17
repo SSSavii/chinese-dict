@@ -11,9 +11,10 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.view.ViewGroup.MarginLayoutParams
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.core.content.res.ResourcesCompat
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -23,15 +24,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var characterInput: EditText
     private lateinit var confirmGraphemesButton: ImageButton
     private lateinit var translateButton: Button
+    private lateinit var clearGraphemesButton: ImageButton
+    private lateinit var exitButton: Button
+
     private val selectedGraphemes = mutableListOf<String>()
     private var isDeleting = false
-/*Рад, что удалось решить проблему! Давайте я объясню, почему это решение работает:
-
-1. Флаг `isDeleting` помогает различать между добавлением новой графемы и удалением существующей, что предотвращает нежелательные состояния клавиатуры.
-
-2. При удалении графемы происходит полный сброс состояния и последовательное восстановление оставшихся графем, что гарантирует правильный порядок и набор доступных графем.
-
-3. Последовательное добавление графем заново (`currentGraphemes.forEach`) обеспечивает корректное обновление состояния клавиатуры в соответствии с логикой сервера*/
     private val apiService = RetrofitClient.apiService
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +46,8 @@ class MainActivity : AppCompatActivity() {
         characterInput = findViewById(R.id.characterInput)
         confirmGraphemesButton = findViewById(R.id.confirmGraphemesButton)
         translateButton = findViewById(R.id.translateButton)
+        clearGraphemesButton = findViewById(R.id.clearGraphemesButton)
+        exitButton = findViewById(R.id.exitButton)
     }
 
     private fun setupListeners() {
@@ -61,7 +60,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Обработчик для кнопки подтверждения графем
+        clearGraphemesButton.setOnClickListener {
+            selectedGraphemes.clear()
+            updateSelectedGraphemesView()
+            createImageButtons()
+        }
+
         confirmGraphemesButton.setOnClickListener {
             if (selectedGraphemes.isNotEmpty()) {
                 checkHieroglyphExists()
@@ -69,8 +73,16 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Выберите графемы", Toast.LENGTH_SHORT).show()
             }
         }
-    }
 
+        exitButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Подтверждение")
+                .setMessage("Вы действительно хотите выйти?")
+                .setPositiveButton("Да") { _, _ -> finish() }
+                .setNegativeButton("Нет", null)
+                .show()
+        }
+    }
 
     private fun startTranslationActivity(character: String) {
         val intent = Intent(this, TranslationActivity::class.java)
@@ -85,17 +97,14 @@ class MainActivity : AppCompatActivity() {
         val imageMargin = (screenWidth * 0.005).toInt()
 
         try {
-            val assetManager = assets
-            val files = assetManager.list("graphems") ?: return
-
-            for (file in files) {
+            assets.list("graphems")?.forEach { file ->
                 if (file.endsWith(".png")) {
                     val imageView = createImageView(file, imageWidth, imageMargin)
                     buttonGrid.addView(imageView)
                 }
             }
         } catch (e: IOException) {
-            e.printStackTrace()
+            Log.e("MainActivity", "Error loading graphemes", e)
         }
     }
 
@@ -126,13 +135,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val grapheme = fileName.removeSuffix(".png")
-        Log.d("MainActivity", "Clicked grapheme: $grapheme")
-
         selectedGraphemes.add(grapheme)
         updateSelectedGraphemesView()
         fetchAvailableGraphemes()
     }
-
 
     private fun updateSelectedGraphemesView() {
         selectedGraphemesContainer.removeAllViews()
@@ -141,13 +147,16 @@ class MainActivity : AppCompatActivity() {
         val imageWidth = (screenWidth * 0.09).toInt()
         val margin = (resources.displayMetrics.density * 4).toInt()
 
-        val graphemeIndices = selectedGraphemes.withIndex().toList()
-
-        for ((index, grapheme) in graphemeIndices) {
+        selectedGraphemes.forEachIndexed { index, grapheme ->
             val imageView = ImageView(this).apply {
-                setImageBitmap(assets.open("graphems/$grapheme.png").use {
-                    android.graphics.BitmapFactory.decodeStream(it)
-                })
+                try {
+                    setImageBitmap(assets.open("graphems/$grapheme.png").use {
+                        android.graphics.BitmapFactory.decodeStream(it)
+                    })
+                } catch (e: IOException) {
+                    Log.e("MainActivity", "Error loading grapheme image: $grapheme", e)
+                    return@apply
+                }
 
                 layoutParams = LinearLayout.LayoutParams(imageWidth, imageWidth).apply {
                     setMargins(margin, margin, margin, margin)
@@ -158,16 +167,12 @@ class MainActivity : AppCompatActivity() {
                     selectedGraphemes.removeAt(index)
                     updateSelectedGraphemesView()
 
-                    // Полностью сбрасываем состояние клавиатуры
                     if (selectedGraphemes.isEmpty()) {
                         createImageButtons()
                     } else {
-                        // Заново запрашиваем доступные графемы с начала
                         val currentGraphemes = selectedGraphemes.toList()
                         selectedGraphemes.clear()
                         createImageButtons()
-
-                        // Последовательно добавляем графемы заново
                         currentGraphemes.forEach { g ->
                             selectedGraphemes.add(g)
                             fetchAvailableGraphemes()
@@ -180,15 +185,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchAvailableGraphemes() {
-        if (selectedGraphemes.isEmpty()) {
-            createImageButtons()
-            return
-        }
-
         lifecycleScope.launch {
             try {
-                val request = GraphemeRequest(selectedGraphemes)
-                val response = apiService.getAvailableGraphemes(request)
+                val response = apiService.getAvailableGraphemes(GraphemeRequest(selectedGraphemes))
 
                 runOnUiThread {
                     buttonGrid.removeAllViews()
@@ -204,16 +203,14 @@ class MainActivity : AppCompatActivity() {
                                 val imageView = createImageView("$grapheme.png", imageWidth, imageMargin)
                                 buttonGrid.addView(imageView)
                             } catch (e: IOException) {
-                                Log.e("MainActivity", "Error creating image view for grapheme: $grapheme", e)
+                                Log.e("MainActivity", "Error creating image view: $grapheme", e)
                             }
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error fetching available graphemes", e)
-                runOnUiThread {
-                    createImageButtons()
-                }
+                Log.e("MainActivity", "Error fetching graphemes", e)
+                runOnUiThread { createImageButtons() }
             }
         }
     }
@@ -221,39 +218,28 @@ class MainActivity : AppCompatActivity() {
     private fun checkHieroglyphExists() {
         lifecycleScope.launch {
             try {
-                val request = GraphemeRequest(selectedGraphemes)
+                val response = apiService.getHieroglyph(GraphemeRequest(selectedGraphemes))
 
-                // Затем пытаемся получить иероглиф
-                val response = apiService.getHieroglyph(request)
+                runOnUiThread {
+                    val currentText = characterInput.text.toString()
+                    characterInput.setText(
+                        if (currentText.isEmpty()) response.hieroglyph
+                        else "$currentText ${response.hieroglyph}"
+                    )
 
-                characterInput.setText(response.hieroglyph)
-
-                Toast.makeText(
-                    this@MainActivity,
-                    "Иероглиф найден: ${response.hieroglyph}",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                selectedGraphemes.clear()
-                updateSelectedGraphemesView()
-                createImageButtons()
+                    selectedGraphemes.clear()
+                    updateSelectedGraphemesView()
+                    createImageButtons()
+                }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error checking hieroglyph", e)
-
-                val errorMessage = when (e) {
-                    is retrofit2.HttpException -> {
-                        val errorBody = e.response()?.errorBody()?.string()
-                        Log.e("MainActivity", "Server error response: $errorBody")
-                        "Иероглиф не найден: ${errorBody ?: e.message()}"
-                    }
-                    else -> "Ошибка: ${e.message}"
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Иероглиф не найден: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
-
-                Toast.makeText(
-                    this@MainActivity,
-                    errorMessage,
-                    Toast.LENGTH_LONG
-                ).show()
             }
         }
     }

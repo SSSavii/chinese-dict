@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -8,6 +9,16 @@
     android:padding="16dp">
 
     <!-- Графемная строка с кнопкой подтверждения -->
+    <!-- Изменим LinearLayout с кнопками -->
+    <Button
+        android:id="@+id/exitButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/quit" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -19,24 +30,35 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@drawable/selected_area_background"
-            android:padding="8dp">
+            android:padding="8dp"
+            tools:ignore="SpeakableTextPresentCheck">
 
             <LinearLayout
                 android:id="@+id/selectedGraphemesContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:minHeight="50dp"
-                android:gravity="center_vertical"/>
+                android:orientation="horizontal" />
         </HorizontalScrollView>
+
+        <ImageButton
+            android:id="@+id/clearGraphemesButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_clear"
+            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
         <ImageButton
             android:id="@+id/confirmGraphemesButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_check"
-            android:background="?attr/selectableItemBackgroundBorderless"/>
+            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
     </LinearLayout>
 
     <!-- Строка для ввода иероглифа -->
@@ -51,30 +73,37 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:autofillHints=""
             android:background="@drawable/selected_area_background"
+            android:hint="@string/enter_hieroglyphs"
+            android:minHeight="48dp"
             android:padding="8dp"
-            android:hint="Введите иероглиф"/>
+            android:textColorHint="#757575"
+            tools:ignore="TextContrastCheck,TextFields,VisualLintTextFieldSize" />
 
+        <!-- Добавляем кнопку выхода -->
         <Button
             android:id="@+id/translateButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="Перевести"/>
+            android:text="@string/translate"
+            tools:ignore="TouchTargetSizeCheck,VisualLintBounds" />
     </LinearLayout>
 
     <!-- Клавиатура графем -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        tools:ignore="SpeakableTextPresentCheck">
 
         <GridLayout
             android:id="@+id/buttonGrid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="9"
             android:background="#FFFFFF"
-            android:padding="8dp"/>
+            android:columnCount="9"
+            android:padding="8dp" />
     </ScrollView>
 </LinearLayout>
